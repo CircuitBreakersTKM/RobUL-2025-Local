@@ -51,7 +51,7 @@ public class RobotContainer {
     private final Command lookAtBlobCommand;
     private final Command cameraTurnCommand;
     
-    private final Command armSnapPickupCommand;
+    private Command armSnapPickupCommand;
 
     private final Command zeroGyroCommand;
 
@@ -231,6 +231,46 @@ public class RobotContainer {
                 laserMoveCommand.schedule();
             }
             case KROUZKY -> {
+                joystickDriveCommand = new JoystickDriveCommand(swerve,
+                    () ->  { 
+                        double driverAInput = MathUtil.applyDeadband(controller.getLeftX(), NetworkSubsystem.JOYSTICK_DEADZONE.get());
+                        double driverBInput = MathUtil.applyDeadband(secondaryController.getLeftTriggerAxis(), NetworkSubsystem.JOYSTICK_DEADZONE.get()) * 0.8;
+
+                        if (driverBInput > 0) {
+                            if (secondaryController.getPOV() == 90 || secondaryController.getPOV() == 45 || secondaryController.getPOV() == 135) { // allow for any input thats partially right
+                                return driverBInput;
+                            }
+                            else if (secondaryController.getPOV() == 270 || secondaryController.getPOV() == 225 || secondaryController.getPOV() == 315) { // allow for any input thats partially left
+                                return -driverBInput;
+                            }
+                        }
+
+                        return driverAInput;
+                    },
+                    () -> {
+                        double driverAInput = MathUtil.applyDeadband(controller.getLeftY(), NetworkSubsystem.JOYSTICK_DEADZONE.get());
+                        double driverBInput = MathUtil.applyDeadband(secondaryController.getLeftTriggerAxis(), NetworkSubsystem.JOYSTICK_DEADZONE.get()) * 0.8;
+
+                        if (driverBInput > 0 && secondaryController.getPOV() == -1) { 
+                            return -driverBInput;
+                        }
+
+                        return driverAInput;
+                    },
+                    () -> MathUtil.applyDeadband(controller.getLeftTriggerAxis() - controller.getRightTriggerAxis(), 
+                        NetworkSubsystem.TRIGGER_AXIS_DEADZONE.get()),
+                    () -> !controller.getLeftBumperButton() && MathUtil.applyDeadband(secondaryController.getLeftTriggerAxis(), NetworkSubsystem.JOYSTICK_DEADZONE.get()) == 0
+                );
+
+                double pickUpSpeed = 0.66;
+                double dropOffSpeed = 1.0;
+
+                armSnapPickupCommand = new ArmSweepCommand(
+                    armSubsystem,
+                    () -> num(secondaryController.getXButton()) - num(secondaryController.getBButton()),
+                    () -> num(secondaryController.getAButton()) * pickUpSpeed - num(secondaryController.getYButton()) * dropOffSpeed
+                );
+
                 armSnapPickupCommand.schedule();
                 joystickDriveCommand.schedule();
             }
@@ -276,6 +316,46 @@ public class RobotContainer {
                     false);
                 
                 crabDriveCommand.schedule();
+            }
+            case RELATIVE -> {
+                joystickDriveCommand = new JoystickDriveCommand(swerve,
+                    () ->  { 
+                        return MathUtil.applyDeadband(controller.getLeftX(), NetworkSubsystem.JOYSTICK_DEADZONE.get());
+                    },
+                    () -> {
+                        return MathUtil.applyDeadband(controller.getLeftY(), NetworkSubsystem.JOYSTICK_DEADZONE.get());
+                    },
+                    () -> MathUtil.applyDeadband(controller.getLeftTriggerAxis() - controller.getRightTriggerAxis(), 
+                        NetworkSubsystem.TRIGGER_AXIS_DEADZONE.get()),
+                    () -> true
+                );
+                joystickDriveCommand.schedule();
+            }
+            case KROUZKY_ALONE -> {
+                double pickUpSpeed = 0.66;
+                double dropOffSpeed = 1.0;
+
+                armSnapPickupCommand = new ArmSweepCommand(
+                    armSubsystem,
+                    () -> num(controller.getXButton()) - num(controller.getBButton()),
+                    () -> num(controller.getAButton()) * pickUpSpeed - num(controller.getYButton()) * dropOffSpeed
+                );
+
+                armSnapPickupCommand.schedule();
+
+                joystickDriveCommand = new JoystickDriveCommand(swerve,
+                    () ->  { 
+                        return MathUtil.applyDeadband(controller.getLeftX(), NetworkSubsystem.JOYSTICK_DEADZONE.get());
+                    },
+                    () -> {
+                        return MathUtil.applyDeadband(controller.getLeftY(), NetworkSubsystem.JOYSTICK_DEADZONE.get());
+                    },
+                    () -> MathUtil.applyDeadband(controller.getLeftTriggerAxis() - controller.getRightTriggerAxis(), 
+                        NetworkSubsystem.TRIGGER_AXIS_DEADZONE.get()),
+                    () -> true
+                );
+
+                joystickDriveCommand.schedule();
             }
             default -> {}
         }

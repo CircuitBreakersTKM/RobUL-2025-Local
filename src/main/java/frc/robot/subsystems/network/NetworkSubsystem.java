@@ -14,6 +14,8 @@ public class NetworkSubsystem {
      */
     public static enum TeleopMode {
         NONE,
+        RELATIVE,
+        KROUZKY_ALONE,
         LASERY_POLE,
         LASERY_VEZ,
         KROUZKY,
@@ -22,7 +24,7 @@ public class NetworkSubsystem {
         SLALOM_MANUAL,
         SLALOM_AUTONOM,
         CENTER_WHEELS,
-        TEST
+        TEST,
     }
 
     public static enum AutoMode {
@@ -59,6 +61,8 @@ public class NetworkSubsystem {
         "Chassis/Max angular speed (rads^-1)", 1.8);
     public static final DashboardValue<Boolean> OVERRIDE_LOW_VOLTAGE_LIMIERS = new DashboardValue<>(
         "Chassis/Advanced/Override low voltage limiters", true);
+    public static final DashboardValue<Boolean> DISPLACEMENT_CORRECTION = new DashboardValue<>(
+        "Chassis/Advanced/Displacement correction", false);
 
     // Chassis/advanced parameters
     public static final DashboardValue<Double> MAX_ACCELERATION = new DashboardValue<>(
@@ -107,6 +111,7 @@ public class NetworkSubsystem {
         teleopModeChooser.addOption("Slalom autonom", TeleopMode.SLALOM_AUTONOM);
         teleopModeChooser.addOption("Center Wheels", TeleopMode.CENTER_WHEELS);
         teleopModeChooser.addOption("Test", TeleopMode.TEST);
+        teleopModeChooser.addOption("Relative", TeleopMode.RELATIVE);
         SmartDashboard.putData("Teleop Mode", NetworkSubsystem.teleopModeChooser);
 
         autoModeChooser.setDefaultOption("None", AutoMode.NONE);

@@ -33,6 +33,7 @@ public class SwerveDriveSubsystem extends SubsystemBase implements MotorizedSubs
     private double minSpeed = 2;
 
     private double lastHeading = Double.MAX_VALUE;
+    private Translation2d lastVelocity = new Translation2d(Double.MAX_VALUE, Double.MAX_VALUE);
 
     private PowerDistribution pdh = new PowerDistribution(10, PowerDistribution.ModuleType.kRev);
     
@@ -40,10 +41,16 @@ public class SwerveDriveSubsystem extends SubsystemBase implements MotorizedSubs
     private RateLimiter rotLimiter = new RateLimiter(NetworkSubsystem.MAX_ANGULAR_ACCELERATION.get(), 8*Math.PI, 1);
     
     public boolean headingCorrection = true;
-    public double noHeadingCorrectionTimeout = 0.3; // seconds before heading correction resumes
+    public double noCorrectionTimeout = 0.3; // seconds before heading correction resumes
     private Double targetHeading = null; // Stored heading for drift compensation
+    private Translation2d targetVelocity = null;
+    private Translation2d targetPosition = null;
+    private Translation2d expectedPosition = null;
     private double lastRotationTime = 0; // Timestamp when rotation was last non-zero
+    private double lastMoveTime = 0;
     private static final double HEADING_KP = 2.0; // Proportional gain for heading correction
+    private static final double DISPLACEMENT_KP = 2.0; // Proportional gain for velocity correction
+    private static final double POSITION_KP = 1.5; // Proportional gain for position correction
     
     /**
      * Creates a new SwerveDriveSubsystem by loading configuration from JSON files.
@@ -103,6 +110,7 @@ public class SwerveDriveSubsystem extends SubsystemBase implements MotorizedSubs
 
         // Apply drift compensation
         rot = applyDriftCompensation(rot);
+        speeds = applyDisplacementCompensation(speeds);
 
         swerveDrive.drive(speeds, rot, fieldRelative, isOpenLoop);
     }
@@ -135,8 +143,61 @@ public class SwerveDriveSubsystem extends SubsystemBase implements MotorizedSubs
         
         // Apply drift compensation
         rot = applyDriftCompensation(rot);
+        speeds = applyDisplacementCompensation(speeds);
         
         swerveDrive.drive(speeds, rot, fieldRelative, isOpenLoop);
+    }
+
+    /**
+     * Applies displacement compensation to translation input.
+     * Uses gyro acceleration to detect and counteract unwanted movement.
+     * If translation is 0, resists acceleration by applying proportional correction.
+     * If translation is non-zero, updates the stored velocity to current robot velocity.
+     * 
+     * @param speeds The translation input from the driver
+     * @return The compensated translation value
+     */
+    private Translation2d applyDisplacementCompensation(Translation2d speeds) {
+        if (!NetworkSubsystem.DISPLACEMENT_CORRECTION.get()) return speeds;
+
+        ChassisSpeeds currentVelocity = swerveDrive.getRobotVelocity();
+        Translation2d currentTranslationalVelocity = new Translation2d(currentVelocity.vxMetersPerSecond, currentVelocity.vyMetersPerSecond);
+        
+        // Detect gyro disconnect - if velocity hasn't changed, gyro might be disconnected
+        if (currentTranslationalVelocity.getX() == lastVelocity.getX() && 
+            currentTranslationalVelocity.getY() == lastVelocity.getY()) {
+            return speeds;
+        }
+        lastVelocity = currentTranslationalVelocity;
+        
+        double currentTime = Timer.getFPGATimestamp();
+        
+        if (Math.hypot(speeds.getX(), speeds.getY()) < 0.01) { // no translation (with small tolerance)
+            // Check if we're still within the timeout period after last movement
+            if (currentTime - lastMoveTime < noCorrectionTimeout) {
+                // Still in timeout, don't apply displacement correction
+                targetVelocity = null;
+                return speeds;
+            }
+            
+            // Driver wants to maintain velocity (zero) - apply drift compensation
+            if (targetVelocity == null) {
+                // First time with no translation, store current velocity as target
+                targetVelocity = currentTranslationalVelocity;
+            }
+            
+            // Calculate velocity error (unwanted acceleration) and apply proportional correction
+            double xVelError = targetVelocity.getX() - currentTranslationalVelocity.getX();
+            double yVelError = targetVelocity.getY() - currentTranslationalVelocity.getY();
+            
+            // Return correction to counteract unwanted acceleration
+            return new Translation2d(xVelError * DISPLACEMENT_KP, yVelError * DISPLACEMENT_KP);
+        } else {
+            // Driver is actively moving - update target velocity and timestamp
+            lastMoveTime = currentTime;
+            targetVelocity = currentTranslationalVelocity;
+            return speeds;
+        }
     }
     
     /**
@@ -149,6 +210,7 @@ public class SwerveDriveSubsystem extends SubsystemBase implements MotorizedSubs
      */
     private double applyDriftCompensation(double rotation) {
         if (!headingCorrection) return rotation;
+
     
         double currentHeading = swerveDrive.getYaw().getRadians();
 
@@ -159,7 +221,7 @@ public class SwerveDriveSubsystem extends SubsystemBase implements MotorizedSubs
         
         if (Math.abs(rotation) < 0.01) { // rotation == 0 (with small tolerance)
             // Check if we're still within the timeout period after last rotation
-            if (currentTime - lastRotationTime < noHeadingCorrectionTimeout) {
+            if (currentTime - lastRotationTime < noCorrectionTimeout) {
                 // Still in timeout, don't apply heading correction
                 targetHeading = null;
                 return rotation;
@@ -194,6 +256,9 @@ public class SwerveDriveSubsystem extends SubsystemBase implements MotorizedSubs
     public void zeroGyro() {
         swerveDrive.zeroGyro();
         targetHeading = null; // Reset drift compensation
+        targetVelocity = null; // Reset displacement compensation
+        targetPosition = null;
+        expectedPosition = null;
     }
 
     /**
