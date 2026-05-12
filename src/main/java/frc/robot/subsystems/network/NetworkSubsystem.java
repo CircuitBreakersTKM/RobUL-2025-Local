@@ -68,6 +68,8 @@ public class NetworkSubsystem {
         "Chassis/Advanced/Override low voltage limiters", true);
     public static final DashboardValue<Boolean> DISPLACEMENT_CORRECTION = new DashboardValue<>(
         "Chassis/Advanced/Displacement correction", false);
+    public static final DashboardValue<Boolean> IMU_DISCONNECTED = new DashboardValue<>(
+        "Chassis/Advanced/IMU Disconected", false);
 
     // Chassis/advanced parameters
     public static final DashboardValue<Double> MAX_ACCELERATION = new DashboardValue<>(

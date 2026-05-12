@@ -214,7 +214,19 @@ public class SwerveDriveSubsystem extends SubsystemBase implements MotorizedSubs
     
         double currentHeading = swerveDrive.getYaw().getRadians();
 
-        if (currentHeading == lastHeading) return rotation;
+        if (currentHeading == lastHeading) {
+            if (Math.abs(rotation) < 0.01) {
+                NetworkSubsystem.IMU_DISCONNECTED.set(true);
+            }
+            
+            return rotation;
+        }
+        else if (NetworkSubsystem.IMU_DISCONNECTED.get()) {
+            NetworkSubsystem.IMU_DISCONNECTED.set(false);
+            lastHeading = currentHeading;
+            return rotation;
+        }
+
         lastHeading = currentHeading;
 
         double currentTime = Timer.getFPGATimestamp();
