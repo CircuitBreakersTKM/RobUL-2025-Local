@@ -1,5 +1,7 @@
 package frc.robot.math;
 
+import frc.robot.subsystems.network.NetworkSubsystem;
+
 /**
  * Utility class providing non-linear scaling functions for controller inputs.
  * Applies power curves to reduce sensitivity at low inputs while maintaining high-end precision.
@@ -15,7 +17,7 @@ public class MathHelper {
         double sign = Math.signum(input);
         double absInput = Math.abs(input);
 
-        double scaledInput = Math.pow(absInput, 2.6);
+        double scaledInput = Math.pow(absInput, NetworkSubsystem.SPEED_CURVE.get());
 
         return sign * scaledInput;
     }

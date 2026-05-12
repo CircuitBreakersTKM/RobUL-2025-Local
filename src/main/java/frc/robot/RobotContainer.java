@@ -337,8 +337,8 @@ public class RobotContainer {
 
                 armSnapPickupCommand = new ArmSweepCommand(
                     armSubsystem,
-                    () -> num(controller.getXButton()) - num(controller.getBButton()),
-                    () -> num(controller.getAButton()) * pickUpSpeed - num(controller.getYButton()) * dropOffSpeed
+                    () -> num(controller.getXButton() && !NetworkSubsystem.CHILD_MODE_ENABLED.get()) - num(controller.getBButton() && !NetworkSubsystem.CHILD_MODE_ENABLED.get()),
+                    () -> num(controller.getLeftBumperButton() && !NetworkSubsystem.CHILD_MODE_ENABLED.get()) * pickUpSpeed - num(controller.getRightBumperButton() && !NetworkSubsystem.CHILD_MODE_ENABLED.get()) * dropOffSpeed
                 );
 
                 armSnapPickupCommand.schedule();
@@ -352,7 +352,7 @@ public class RobotContainer {
                     },
                     () -> MathUtil.applyDeadband(controller.getLeftTriggerAxis() - controller.getRightTriggerAxis(), 
                         NetworkSubsystem.TRIGGER_AXIS_DEADZONE.get()),
-                    () -> true
+                    () -> NetworkSubsystem.DRIVE_RELATIVE.get()
                 );
 
                 joystickDriveCommand.schedule();

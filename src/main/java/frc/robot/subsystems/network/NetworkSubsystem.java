@@ -2,6 +2,7 @@ package frc.robot.subsystems.network;
 
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.InstantCommand;
 
 /**
  * Manages NetworkTables dashboard values and auto mode selection.
@@ -59,6 +60,10 @@ public class NetworkSubsystem {
         "Chassis/Max speed (ms^-1)", 2.5);
     public static final DashboardValue<Double> MAX_ANGULAR_SPEED = new DashboardValue<>(
         "Chassis/Max angular speed (rads^-1)", 1.8);
+    public static final DashboardValue<Double> SPEED_CURVE = new DashboardValue<Double>(
+        "Chassis/Speed curve", 2.3);
+    public static final DashboardValue<Boolean> DRIVE_RELATIVE = new DashboardValue<Boolean>(
+        "Chassis/Drive relative", true);
     public static final DashboardValue<Boolean> OVERRIDE_LOW_VOLTAGE_LIMIERS = new DashboardValue<>(
         "Chassis/Advanced/Override low voltage limiters", true);
     public static final DashboardValue<Boolean> DISPLACEMENT_CORRECTION = new DashboardValue<>(
@@ -92,8 +97,13 @@ public class NetworkSubsystem {
     public static final DashboardValue<Boolean> DEBUG_LIMIT_SWICH_READING = new DashboardValue<> (
         "Debug/Limit switch reading", false);
     public static final DashboardValue<Boolean> DEBUG_DISABLE_LASER = new DashboardValue<>(
-        "Debug/Debug disable laser", false
-    );
+        "Debug/Debug disable laser", false);
+    public static final DashboardValue<Boolean> CHILD_MODE_ENABLED = new DashboardValue<>(
+        "Debug/Child mode enabled", false);
+
+
+    private static double backupMaxSpeed = 1.0;
+    private static double backupRotationSpeed = 1.0;
 
     /**
      * Initializes the NetworkSubsystem by setting up the auto mode chooser
@@ -102,6 +112,7 @@ public class NetworkSubsystem {
      */
     public static void Init() {
         teleopModeChooser.setDefaultOption("None", TeleopMode.NONE);
+        teleopModeChooser.addOption("Krouzky alone", TeleopMode.KROUZKY_ALONE);
         teleopModeChooser.addOption("Lasery Pole", TeleopMode.LASERY_POLE);
         teleopModeChooser.addOption("Lasery Vez", TeleopMode.LASERY_VEZ);
         teleopModeChooser.addOption("Krouzky", TeleopMode.KROUZKY);
@@ -121,6 +132,18 @@ public class NetworkSubsystem {
         autoModeChooser.addOption("Test", AutoMode.TEST);
 
         SmartDashboard.putData("Auto Mode", NetworkSubsystem.autoModeChooser);
+
+        SmartDashboard.putData("Child mode", new InstantCommand(() -> {
+            CHILD_MODE_ENABLED.set(!CHILD_MODE_ENABLED.get());
+            
+            double swap = MAX_SPEED.get();
+            MAX_SPEED.set(backupMaxSpeed);
+            backupMaxSpeed = swap;
+
+            swap = MAX_ANGULAR_SPEED.get();
+            MAX_ANGULAR_SPEED.set(backupRotationSpeed);
+            backupRotationSpeed = swap;
+        }));
 
 
         for (DashboardValue<?> value : DashboardValue.values) {
